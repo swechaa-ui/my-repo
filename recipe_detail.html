@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}{{ recipe.title }} - Recipe Details{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="row">
+    <!-- Left: Image + Details -->
+    <div class="col-md-6">
+      <img src="{{ recipe.image }}" class="img-fluid rounded shadow mb-4" alt="{{ recipe.title }}">
+      <h2 class="mb-3">{{ recipe.title }}</h2>
+      <p><strong>⏱️ Ready in:</strong> {{ recipe.readyInMinutes }} minutes</p>
+      <p><strong>🍽️ Servings:</strong> {{ recipe.servings }}</p>
+
+      {% if recipe.sourceUrl %}
+        <p><a href="{{ recipe.sourceUrl }}" target="_blank" class="btn btn-outline-secondary btn-sm">Source</a></p>
+      {% endif %}
+
+      {% if recipe.nutrition %}
+        <h5 class="mt-4">Nutrition (Per Serving)</h5>
+        <ul>
+          {% for nutrient in recipe.nutrition.nutrients[:5] %}
+            <li>{{ nutrient.title }}: {{ nutrient.amount }}{{ nutrient.unit }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <!-- Right: Ingredients + Instructions -->
+    <div class="col-md-6">
+
+      <h4 class="mb-3 d-flex justify-content-between align-items-center">
+        <span>🧂 Ingredients</span>
+
+        {% if current_user.is_authenticated %}
+          {% if not is_favorite %}
+            <form id="saveForm" class="d-inline-block m-0 p-0">
+              <input type="hidden" id="recipeId" value="{{ recipe.id }}">
+              <input type="hidden" id="recipeTitle" value="{{ recipe.title }}">
+              <input type="hidden" id="recipeImage" value="{{ recipe.image }}">
+              <input type="hidden" id="recipeUrl" value="{{ url_for('routes.recipe_detail', recipe_id=recipe.id) }}">
+
+              <button class="btn save-btn btn-sm d-flex align-items-center gap-2 px-3 py-2"
+                      style="background-color: #000; color: #fff; border: 1px solid #000;"
+                      data-id="{{ recipe.id }}"
+                      data-title="{{ recipe.title }}"
+                      data-image="{{ recipe.image }}"
+                      data-url="{{ url_for('routes.recipe_detail', recipe_id=recipe.id) }}"
+
+                <i class="bi bi-bookmark-heart-fill"></i> Save to Cookbook
+              </button>
+            </form>
+          {% else %}
+            <span class="badge bg-success">✅ Already in Cookbook</span>
+          {% endif %}
+        {% endif %}
+      </h4>
+
+      <ul>
+        {% for ingredient in recipe.extendedIngredients %}
+          <li>{{ ingredient.original }}</li>
+        {% endfor %}
+      </ul>
+
+      <h4 class="mt-4">📋 Instructions</h4>
+      {% if recipe.analyzedInstructions and recipe.analyzedInstructions[0].steps %}
+        <ol>
+          {% for step in recipe.analyzedInstructions[0].steps %}
+            <li class="mb-2">{{ step.step }}</li>
+          {% endfor %}
+        </ol>
+      {% elif recipe.instructions %}
+        <p>{{ recipe.instructions }}</p>
+      {% else %}
+        <p class="text-muted">No instructions available for this recipe.</p>
+      {% endif %}
+
+      {% if recipe.video %}
+        <div class="mt-4">
+          <h5>🎥 Video</h5>
+          <video width="100%" controls>
+            <source src="{{ recipe.video }}" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+document.getElementById('saveForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  fetch('/save_favorite', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+    },
+    body: JSON.stringify({
+      recipe_id: document.getElementById('recipeId').value,
+      title: document.getElementById('recipeTitle').value,
+      image: document.getElementById('recipeImage').value,
+      recipe_url: document.getElementById('recipeUrl').value
+    })
+  })
+  .then(response => response.json())
+  .then(data => alert(data.message))
+  .catch(err => console.error("Save failed:", err));
+});
+</script>
+{% endblock %}
+
+{% endblock %}
+
